@@ -1,7 +1,8 @@
 var app = require('http').createServer(handler).listen(8000)
   , io = require('socket.io').listen(app)
   , fs = require('fs')
-  , arDrone = require('ar-drone');
+  , arDrone = require('ar-drone')
+  , url = require('url');
 
 var drone = arDrone.createClient();
 
@@ -12,11 +13,17 @@ var EMERGENCY = 3;
 var droneStatus = LANDED;
 
 function handler (req, res) {
-  fs.readFile(__dirname + '/index.html',
+  path =  url.parse(req.url).pathname;
+
+  console.log(path);
+
+  pathToLoad = (path == '/') ? '/index.html' : path;
+
+  fs.readFile(__dirname + pathToLoad,
   function (err, data) {
     if (err) {
       res.writeHead(500);
-      return res.end('Error loading index.html');
+      return res.end('Error loading ' + pathToLoad);
     }
 
     res.writeHead(200);
@@ -24,46 +31,92 @@ function handler (req, res) {
   });
 }
 
-function controlDrone(pitch,yaw,roll) {
+function setPitch(p) {
+  pitch = Math.min(1, Math.abs(p));
+  if (p > 0) { 
+    drone.back(pitch);
+  } else {
+    drone.front(pitch);
+  }
+}
+
+function setRoll(r) {
+  roll = Math.min(1, Math.abs(r));
+  console.log(roll);
+  if (r > 0) { 
+    drone.left(roll);
+
+  } else {
+    drone.right(roll);
+  }
+}
+
+function setYaw(y) {
+  if (Math.abs(y) > 0.15) {
+    yaw = Math.min(1, Math.abs(y));
+    if (y > 0) { 
+      drone.clockwise(yaw); 
+    } else {
+     drone.counterClockwise(yaw);
+    }
+  }
+}
+
+function setAlt(a) {
+  if (Math.abs(a) > 75) {
+    alt = Math.min(1, (Math.abs(a) - 75)/50);
+    if (a > 0) {
+      drone.up(alt);
+    } else { 
+      drone.down(alt);
+    }
+  }
+}
+
+function controlDrone(pitch,yaw,roll,alt) {
   // tells the drone what to do.
   // console.log("pitch: " + pitch + "\t yaw: " + yaw + "\t roll: " + roll);
 
   // making it discrete to allow more stability. 
-  p = Math.floor(pitch*10)*0.07;
-  r = Math.floor(roll*10)*0.07;
-  y = Math.floor(yaw*10)*0.07;
+  // These are arbitrary numbers, TODO: make it configurable.
+  p = Math.floor(pitch*10)*0.05;
+  r = Math.floor(roll*10)*0.04;
+  y = Math.floor(yaw*10)*0.03;
+  a = Math.floor((alt-170)/10)*10;
 
-  setPitch = (p > 0) ? drone.back : drone.front;
-  setRoll = (r > 0) ? drone.left : drone.right;
+  // send commands to drone!
+  setRoll(r);
+  setPitch(p);
+  setYaw(y);
+  setAlt(a);
 
-  // only turn when we really mean it.
-  if (Math.abs(y) > 0.1) {
-    setYaw = (y > 0) ? drone.clockwise : drone.counterClockwise;
-  } 
+  // DEBUG
+  // console.log("norm: " + p + "\t" + y + "\t" + r + "\t" + a);
 
-  console.log("norm: " + p + "\t" + y + "\t" + r);
   return
 };
 
 io.sockets.on('connection', function (socket) {
-  socket.emit('news', { hello: 'world' });
 
-  socket.on('connect', function() {
+  socket.on('takeoff', function() {
     // tell drone to takeoff
-    // drone.takeoff(function() {
-    //   droneStatus = HOVERING;
-    // });
+    drone.takeoff(function() {
+      droneStatus = HOVERING;
+    });
   });
 
   socket.on('pyrdata', function (data) {
     // console.log(data);
-    controlDrone(data.pitch, data.yaw, data.roll);
+    console.log(droneStatus);
+    if (droneStatus == HOVERING) {
+      controlDrone(data.pitch, data.yaw, data.roll, data.alt);
+    }
   });
 
-  socket.on('disconnect', function () {
+  socket.on('land', function () {
     // land the drone
-    // drone.land(fucntion() {
-    //   droneStatus = LANDED:
-    // });
+    drone.land(function() {
+      droneStatus = LANDED;
+    });
   })
 });

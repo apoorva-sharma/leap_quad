@@ -1,0 +1,5 @@
+A leap motion powered controller for an AR Drone quadcopter.
+
+Using Leap.js, node-ar-drone and socket.io
+
+Currently in heavy development.
