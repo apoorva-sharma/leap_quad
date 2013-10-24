@@ -45,14 +45,13 @@ function setRoll(r) {
   console.log(roll);
   if (r > 0) { 
     drone.left(roll);
-
   } else {
     drone.right(roll);
   }
 }
 
 function setYaw(y) {
-  if (Math.abs(y) > 0.15) {
+  if (Math.abs(y) > 0.2) {
     yaw = Math.min(1, Math.abs(y));
     if (y > 0) { 
       drone.clockwise(yaw); 

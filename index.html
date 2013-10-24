@@ -34,14 +34,12 @@
       return;
     }
 
-    if (frame.hands.length > 0) {
-      for (var i in frame.handsMap) {
-        var hand = frame.handsMap[i];
-        roll_ = hand.roll();
-        pitch_ = hand.pitch();
-        yaw_ = hand.yaw()
-        alt_ = hand.palmPosition[1];
-      }
+    if (frame.hands.length == 2) {
+      var hand = getRightMostHand(frame.hands);
+      roll_ = hand.roll();
+      pitch_ = hand.pitch();
+      yaw_ = hand.yaw()
+      alt_ = hand.palmPosition[1];
     } else {
       roll_ = 0;
       pitch_ = 0;
@@ -81,11 +79,21 @@
     console.log("deviceDisconnected");
   });
 
+  function getRightMostHand(hands) {
+    rightMost = hands[0];
+    for (var i = 1; i < hands.length; ++i) {
+      if (hands[i].palmPosition[0] > rightMost.palmPosition[0]) {
+        rightMost = hands[i];
+      }
+    } 
+    return rightMost;
+  }
+
   function sendPYRData() {
   	if (JSON.stringify(data_) != JSON.stringify({roll: roll_, yaw: yaw_, pitch: pitch_, alt: alt_})) {
 	    data_ = {roll: roll_, yaw: yaw_, pitch: pitch_, alt: alt_}
 	    socket.emit('pyrdata', data_ );
-	}
+    }
   }
 
   function takeoff() {
