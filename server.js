@@ -12,6 +12,8 @@ var EMERGENCY = 3;
 
 var droneStatus = LANDED;
 
+var droneState = {roll: 0, yaw: 0, pitch: 0, alt: 0};
+
 function handler (req, res) {
   path =  url.parse(req.url).pathname;
 
@@ -31,6 +33,8 @@ function handler (req, res) {
   });
 }
 
+function sign(x) { return x ? x < 0 ? -1 : 1 : 0; }
+
 function setPitch(p) {
   pitch = Math.min(1, Math.abs(p));
   if (p > 0) { 
@@ -38,16 +42,17 @@ function setPitch(p) {
   } else {
     drone.front(pitch);
   }
+  return sign(p)*pitch;
 }
 
 function setRoll(r) {
   roll = Math.min(1, Math.abs(r));
-  console.log(roll);
   if (r > 0) { 
     drone.left(roll);
   } else {
     drone.right(roll);
   }
+  return sign(r)*roll;
 }
 
 function setYaw(y) {
@@ -56,8 +61,11 @@ function setYaw(y) {
     if (y > 0) { 
       drone.clockwise(yaw); 
     } else {
-     drone.counterClockwise(yaw);
+      drone.counterClockwise(yaw);
     }
+    return sign(y)*yaw;
+  } else {
+    return 0;
   }
 }
 
@@ -69,6 +77,9 @@ function setAlt(a) {
     } else { 
       drone.down(alt);
     }
+    return sign(a)*alt;
+  } else {
+    return 0;
   }
 }
 
@@ -83,17 +94,19 @@ function controlDrone(pitch,yaw,roll,alt) {
   y = Math.floor(yaw*10)*0.03;
   a = Math.floor((alt-170)/10)*10;
 
-  // send commands to drone!
-  setRoll(r);
-  setPitch(p);
-  setYaw(y);
-  setAlt(a);
+  // send commands to drone, and record drone state
+  droneState.roll = setRoll(r);
+  droneState.pitch = setPitch(p);
+  droneState.yaw = setYaw(y);
+  droneState.alt = setAlt(a);
 
   // DEBUG
   // console.log("norm: " + p + "\t" + y + "\t" + r + "\t" + a);
 
   return
 };
+
+// Response to input from websockets:
 
 io.sockets.on('connection', function (socket) {
 
@@ -110,6 +123,10 @@ io.sockets.on('connection', function (socket) {
     if (droneStatus == HOVERING) {
       controlDrone(data.pitch, data.yaw, data.roll, data.alt);
     }
+
+    // send state back to the drone.
+    socket.emit('update', droneState)
+
   });
 
   socket.on('land', function () {
