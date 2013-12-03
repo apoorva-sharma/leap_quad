@@ -101,7 +101,7 @@ function controlDrone(pitch,yaw,roll,alt) {
   droneState.alt = setAlt(a);
 
   // DEBUG
-  // console.log("norm: " + p + "\t" + y + "\t" + r + "\t" + a);
+  //console.log("norm: " + p + "\t" + y + "\t" + r + "\t" + a);
 
   return
 };
@@ -131,6 +131,7 @@ io.sockets.on('connection', function (socket) {
 
   socket.on('land', function () {
     // land the drone
+    controlDrone(0,0,0,170);
     drone.land(function() {
       droneStatus = LANDED;
     });
